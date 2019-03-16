@@ -34,7 +34,7 @@ void callback(const std_msgs::String::ConstPtr msg)
         }
         if(j["sub_name"] == "get_adc_data")
         {
-            if(j["data"].find("_12v_voltage") != j["data"].end()) 
+            if(j["data"].find("_12v_voltage") != j["data"].end())
             {
                 //ROS_INFO("_12v_voltage:%d",j["data"]["_12v_voltage"]);
             }
@@ -63,6 +63,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv,"test_node");
     ros::NodeHandle n;
     ros::Publisher test_pub = n.advertise<std_msgs::String>("rx_noah_powerboard_node",1000);
+    ros::Publisher conveyor_test_pub = n.advertise<std_msgs::String>("conveyor_ctrl",1000);
+    ros::Publisher conveyor_lock_test_pub = n.advertise<std_msgs::String>("conveyor_lock_ctrl",1000);
     ros::Publisher test_navigation_pub = n.advertise<std_msgs::String>("lane_follower_node/camera_using_n",1000);
     ros::Subscriber test_sub = n.subscribe("tx_noah_powerboard_node", 1000, &callback);
     ros::Publisher test_power_pub = n.advertise<std_msgs::UInt8MultiArray>("app_pub_power",1000);
@@ -75,10 +77,11 @@ int main(int argc, char **argv)
     ros::Publisher test_agent_pub = n.advertise<std_msgs::String>("agent_pub",1000);
 
     ros::ServiceClient service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/update_super_admin");
+    ros::ServiceClient unlock_service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/unlock");
     mrobot_srvs::JString srv;
     //srv.request.request = "\{ \'super_pwd\': \'1111\' \}";
     srv.request.request =  "{\"data\":\"{\\\"pub_name\\\":\\\"binding_credit_card_employees\\\"}\"}";
-    ros::Rate loop_rate(1);
+    ros::Rate loop_rate(0.5);
     json j;
     static uint32_t cnt = 0;
     static uint8_t flag = 0;
@@ -92,32 +95,74 @@ int main(int argc, char **argv)
 
             std_msgs::String pub_json_msg;
             std::stringstream ss;
-            state = cnt % 2 == 0 ? true:false;
+            state = cnt % 3 == 0 ? true:false;
             cnt++;
             if(flag == 0)
             {
 
                // flag = 1;
-#if 1
+#if 0
+                {
+
+                    j.clear();
+                    j =
+                    {
+                        {"lock_index", 0x07},
+                    };
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    unlock_service_client.call(srv);
+                    ROS_INFO("unlock call");
+                }
+#endif
+
+
+#if 0
+                {
+
+                    j.clear();
+                    j =
+                    {
+                        {"lock_index", 0x07},
+                    };
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    unlock_service_client.call(srv);
+                    ROS_INFO("unlock call");
+                }
+#endif
+
+
+#if 0
 
                 j.clear();
-                j = 
+                j =
                 {
-                    {"super_rfid","1111"},
-                    {"super_pwd", "2222"},
+                    {"super_rfid","1007"},
+                    {"super_pwd", "1234"},
                 };
                 std_msgs::String pub_json_msg_5;
                 std::stringstream ss_5;
                 ss_5.clear();
                 ss_5 << j;
-                pub_json_msg_5.data.clear();  
+                pub_json_msg_5.data.clear();
                 pub_json_msg_5.data = ss_5.str();
-                test_pub.publish(pub_json_msg_5);
                 srv.request.request = pub_json_msg_5.data;
                 service_client.call(srv);
+				ROS_INFO("call service returned");
 #endif
 
-#if 0 
+#if 0
 
                 std_msgs::String led;
                 if(cnt % 4 == 0)
@@ -146,7 +191,7 @@ int main(int argc, char **argv)
 #if 0
 
             {
-            
+
                 std_msgs::UInt8MultiArray array;
                 for(uint8_t i = 0; i < 13 + 10; i++)
                 {
@@ -166,7 +211,7 @@ int main(int argc, char **argv)
 #if 0
 
             {
-            
+
                 std_msgs::UInt8MultiArray array;
                 static uint8_t cnt = 0;
                 cnt++;
@@ -180,7 +225,7 @@ int main(int argc, char **argv)
 #if 0
 
             {
-            
+
                 std_msgs::UInt8MultiArray array;
                 static uint8_t cnt = 0;
                 cnt++;
@@ -211,7 +256,7 @@ int main(int argc, char **argv)
 #if 0
 
             {
-            
+
                 std_msgs::UInt8MultiArray array;
                 static uint8_t cnt = 0;
                 //cnt++;
@@ -242,7 +287,7 @@ int main(int argc, char **argv)
                 }
 
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","set_module_state"},
                     {
@@ -250,8 +295,8 @@ int main(int argc, char **argv)
                         {
                             {"dev_name","door_ctrl_state"},
                             {"set_state",(bool)state},
-                            //{"door_id",door_id},
-                            {"door_id",NULL},
+                            {"door_id",door_id},
+                            //{"door_id",NULL},
                         }
                     },
                 };
@@ -259,7 +304,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_5;
                 ss_5.clear();
                 ss_5 << j;
-                pub_json_msg_5.data.clear();  
+                pub_json_msg_5.data.clear();
                 pub_json_msg_5.data = ss_5.str();
                 test_pub.publish(pub_json_msg_5);
                 //ROS_INFO("set door ctrl %d",state);
@@ -267,13 +312,61 @@ int main(int argc, char **argv)
                 //usleep(500*1000);
 #endif
 
+
+#if 0
+                j.clear();
+                j =
+                {
+                    {"pub_name","conveyor_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"set_mode","unload"},
+                            {"lock", true},
+                        }
+                    },
+                };
+                std_msgs::String pub_json_msg_8;
+                std::stringstream ss_8;
+                ss_8.clear();
+                ss_8 << j;
+                pub_json_msg_8.data.clear();
+                pub_json_msg_8.data = ss_8.str();
+                conveyor_test_pub.publish(pub_json_msg_8);
+                ROS_WARN("start conveyor control . . .");
+#endif
+
+
 #if 1
-                std::vector<int> worker_id_vec; 
+                j.clear();
+                j =
+                {
+                    {"pub_name","conveyor_lock_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"lock_ctrl","lock"},
+                        }
+                    },
+                };
+                std_msgs::String pub_json_msg_9;
+                std::stringstream ss_9;
+                ss_9.clear();
+                ss_9 << j;
+                pub_json_msg_9.data.clear();
+                pub_json_msg_9.data = ss_9.str();
+                conveyor_lock_test_pub.publish(pub_json_msg_9);
+                ROS_WARN("start conveyor lock control . . .");
+#endif
+
+
+#if 0
+                std::vector<int> worker_id_vec;
 
                 int uuid_random = random();
                 std::string uuid_str = std::to_string(uuid_random);
                 j.clear();
-                j = 
+                j =
                 {
                     {"uuid",uuid_str.data()},
                     {"pub_name","binding_credit_card_employees"},
@@ -297,13 +390,13 @@ int main(int argc, char **argv)
                 std::stringstream ss_7;
                 ss_7.clear();
                 ss_7 << j;
-                pub_json_msg_7.data.clear();  
+                pub_json_msg_7.data.clear();
                 pub_json_msg_7.data = ss_7.str();
                 test_agent_pub.publish(pub_json_msg_7);
                 ROS_INFO("test agent pub ...");
                 /*
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","container_super_password"},
                     {"uuid",uuid_str.data()},
@@ -311,7 +404,7 @@ int main(int argc, char **argv)
                         "data",
                         {
                             {"password",{{"boxNum", 1},{"password","3322"}}},
-                             
+
                         }
                     },
                 };
@@ -319,7 +412,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_6;
                 ss_6.clear();
                 ss_6 << j;
-                pub_json_msg_6.data.clear();  
+                pub_json_msg_6.data.clear();
                 pub_json_msg_6.data = ss_6.str();
                 test_agent_pub.publish(pub_json_msg_6);
                  */
@@ -328,7 +421,7 @@ int main(int argc, char **argv)
 
 #if 0
                 j.clear();
-                j = 
+                j =
                 {
                     {
                         "params",
@@ -342,7 +435,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_6;
                 ss_6.clear();
                 ss_6 << j;
-                pub_json_msg_6.data.clear();  
+                pub_json_msg_6.data.clear();
                 pub_json_msg_6.data = ss_6.str();
                 starline_test_pub.publish(pub_json_msg_6);
 #endif
@@ -352,7 +445,7 @@ int main(int argc, char **argv)
 
 #if 0
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","set_module_state"},
                     {
@@ -365,7 +458,7 @@ int main(int argc, char **argv)
                 };
                 ss.clear();
                 ss << j;
-                pub_json_msg.data.clear();  
+                pub_json_msg.data.clear();
                 pub_json_msg.data = ss.str();
                 test_pub.publish(pub_json_msg);
                 ROS_INFO("set 24v printer: %d",state);
@@ -374,7 +467,7 @@ int main(int argc, char **argv)
 
 #if 0
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","set_module_state"},
                     {
@@ -389,7 +482,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_2;
                 ss_2.clear();
                 ss_2 << j;
-                pub_json_msg_2.data.clear();  
+                pub_json_msg_2.data.clear();
                 pub_json_msg_2.data = ss_2.str();
                 test_pub.publish(pub_json_msg_2);
                 usleep(500*1000);
@@ -398,7 +491,7 @@ int main(int argc, char **argv)
 
 #if 0
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","set_module_state"},
                     {
@@ -413,7 +506,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_4;
                 ss_4.clear();
                 ss_4 << j;
-                pub_json_msg_4.data.clear();  
+                pub_json_msg_4.data.clear();
                 pub_json_msg_4.data = ss_4.str();
                 test_pub.publish(pub_json_msg_4);
                 ROS_INFO("set 5v dcdc: %d",state);
@@ -422,7 +515,7 @@ int main(int argc, char **argv)
 
 #if 0
                 j.clear();
-                j = 
+                j =
                 {
                     {"pub_name","set_module_state"},
                     {
@@ -437,7 +530,7 @@ int main(int argc, char **argv)
                 std::stringstream ss_3;
                 ss_3.clear();
                 ss_3 << j;
-                pub_json_msg_3.data.clear();  
+                pub_json_msg_3.data.clear();
                 pub_json_msg_3.data = ss_3.str();
                 test_pub.publish(pub_json_msg_3);
                 ROS_INFO("set 12v dcdc: %d",state);
