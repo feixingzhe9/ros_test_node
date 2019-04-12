@@ -3,6 +3,7 @@
 #include "std_msgs/UInt8MultiArray.h"
 #include "json.hpp"
 #include "mrobot_srvs/JString.h"
+#include "mrobot_srvs/KVPair.h"
 
 using json = nlohmann::json;
 void callback(const std_msgs::String::ConstPtr msg)
@@ -78,10 +79,12 @@ int main(int argc, char **argv)
 
     ros::ServiceClient service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/update_super_admin");
     ros::ServiceClient unlock_service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/unlock");
+    ros::ServiceClient factory_settings_service_client = n.serviceClient<mrobot_srvs::KVPair>("factory_settings/set_param");
     mrobot_srvs::JString srv;
+    mrobot_srvs::KVPair factory_settings_srv;
     //srv.request.request = "\{ \'super_pwd\': \'1111\' \}";
     srv.request.request =  "{\"data\":\"{\\\"pub_name\\\":\\\"binding_credit_card_employees\\\"}\"}";
-    ros::Rate loop_rate(0.5);
+    ros::Rate loop_rate(0.2);
     json j;
     static uint32_t cnt = 0;
     static uint8_t flag = 0;
@@ -161,6 +164,31 @@ int main(int argc, char **argv)
                 service_client.call(srv);
 				ROS_INFO("call service returned");
 #endif
+
+#if 1
+
+                j.clear();
+                j =
+                {
+                    {"lock_num---", 6},
+                    {"lock_num", 9},
+                    {"audio-channel-test", "x86"},
+                };
+                std_msgs::String pub_json_msg_5;
+                std::stringstream ss_5;
+                ss_5.clear();
+                ss_5 << j;
+                pub_json_msg_5.data.clear();
+                pub_json_msg_5.data = ss_5.str();
+                //srv.request.request = pub_json_msg_5.data;
+                factory_settings_srv.request.key = "lock_test";
+                factory_settings_srv.request.value = "15";
+                //ROS_INFO("%s", pub_json_msg_5.data);
+                //factory_settings_service_client.call(srv);
+                factory_settings_service_client.call(factory_settings_srv);
+				ROS_INFO("factory_settings: call service returned");
+#endif
+
 
 #if 0
 
@@ -337,7 +365,7 @@ int main(int argc, char **argv)
 #endif
 
 
-#if 1
+#if 0
                 j.clear();
                 j =
                 {
