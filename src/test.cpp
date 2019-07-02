@@ -76,15 +76,18 @@ int main(int argc, char **argv)
     //ros::Publisher basestate_pub_2 = n.advertise<std_msgs::String>("basestate",1000);
     ros::Publisher remote_power_ctrl_pub = n.advertise<std_msgs::UInt8MultiArray>("remote_power_ctrl",1000);
     ros::Publisher test_agent_pub = n.advertise<std_msgs::String>("agent_pub",1000);
+    ros::Publisher test_leds_ctrl_pub = n.advertise<std_msgs::String>("led_ctrl", 10);
 
     ros::ServiceClient service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/update_super_admin");
     ros::ServiceClient unlock_service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/unlock");
     ros::ServiceClient factory_settings_service_client = n.serviceClient<mrobot_srvs::KVPair>("factory_settings/set_param");
+    ros::ServiceClient led_ctrl_service_client = n.serviceClient<mrobot_srvs::JString>("led_ctrl");
+    ros::ServiceClient conveyor_rfid_info_service_client = n.serviceClient<mrobot_srvs::JString>("/conveyor/rfid_info");
     mrobot_srvs::JString srv;
     mrobot_srvs::KVPair factory_settings_srv;
     //srv.request.request = "\{ \'super_pwd\': \'1111\' \}";
     srv.request.request =  "{\"data\":\"{\\\"pub_name\\\":\\\"binding_credit_card_employees\\\"}\"}";
-    ros::Rate loop_rate(0.2);
+    ros::Rate loop_rate(0.3);
     json j;
     static uint32_t cnt = 0;
     static uint8_t flag = 0;
@@ -107,10 +110,102 @@ int main(int argc, char **argv)
 #if 0
                 {
 
+    #if 0
+                j.clear();
+                j =
+                {
+                    {"pub_name","status_led_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"wifi","ok"},
+                            {"trans", "warn"},
+                            {"battery", "err"},
+                        }
+                    },
+                };
+    #else
+                j = 
+                {
+                    {"pub_name","serial_leds_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"period", 50},
+                            {"color", 
+                                {
+                                   {"r", 0},
+                                   {"g", 15},
+                                   {"b", 0},
+                                }
+                            },
+                        }
+                    },
+                };
+    #endif
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    led_ctrl_service_client.call(srv);
+                    ROS_INFO("led ctrl call ");
+                }
+#endif
+
+
+
+#if 0
+                {
+    #if 0
+                j = 
+                {
+                    {"pub_name","write_info"},
+                    {
+                        "data",
+                        {
+                            {"dst_id", 0x1234},
+                            {"src_id", 0x5678},
+                            {"time", 
+                                {
+                                   {"hour", 17},
+                                   {"minute", 32},
+                                }
+                            },
+                        }
+                    },
+                };
+    #else
+
+                j = 
+                {
+                    {"pub_name","get_id"},
+                };
+
+    #endif
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    conveyor_rfid_info_service_client.call(srv);
+                    ROS_INFO("get conveyor rfid id call returned:  srv.response.response: %s", srv.response.response.c_str());
+                    //ROS_WARN("factory_settings_srv returned,  success: %d,  value  :%s ", factory_settings_srv.response.success, factory_settings_srv.response.value.c_str());
+                }
+#endif
+
+
+#if 0
+                {
+
                     j.clear();
                     j =
                     {
-                        {"lock_index", 0x07},
+                        {"lock_index", 0x0f},
                     };
                     std_msgs::String pub_json_msg;
                     std::stringstream ss;
@@ -165,12 +260,11 @@ int main(int argc, char **argv)
 				ROS_INFO("call service returned");
 #endif
 
-#if 1
+#if 0
 
                 j.clear();
                 j =
                 {
-                    {"lock_num---", 6},
                     {"lock_num", 9},
                     {"audio-channel-test", "x86"},
                 };
@@ -181,18 +275,20 @@ int main(int argc, char **argv)
                 pub_json_msg_5.data.clear();
                 pub_json_msg_5.data = ss_5.str();
                 //srv.request.request = pub_json_msg_5.data;
-                factory_settings_srv.request.key = "lock_test";
-                factory_settings_srv.request.value = "15";
+                factory_settings_srv.request.key = "conveyor_lock";
+                factory_settings_srv.request.value = "false";
                 //ROS_INFO("%s", pub_json_msg_5.data);
                 //factory_settings_service_client.call(srv);
+                ROS_INFO("factory_settings_srv requied,  key: %s,  value  :%s ", factory_settings_srv.request.key.c_str(), factory_settings_srv.request.value.c_str());
                 factory_settings_service_client.call(factory_settings_srv);
-				ROS_INFO("factory_settings: call service returned");
+                ROS_WARN("factory_settings_srv returned,  success: %d,  value  :%s ", factory_settings_srv.response.success, factory_settings_srv.response.value.c_str());
 #endif
 
 
 #if 0
 
                 std_msgs::String led;
+                #if 0
                 if(cnt % 4 == 0)
                 {
                     led.data = "00";
@@ -213,7 +309,17 @@ int main(int argc, char **argv)
                     led.data = "11";
                     ROS_INFO("set camera led : 11");
                 }
+                #endif
+                if(cnt % 2 == 1)
+                {
+                    led.data = "101";
+                }
+                if(cnt % 2 == 0)
+                {
+                    led.data = "100";
+                }
                 test_navigation_pub.publish(led);
+                ROS_INFO("led: %s", led.data.data());
 
 #endif
 #if 0
@@ -341,7 +447,7 @@ int main(int argc, char **argv)
 #endif
 
 
-#if 0
+#if 1
                 j.clear();
                 j =
                 {
@@ -349,7 +455,7 @@ int main(int argc, char **argv)
                     {
                         "data",
                         {
-                            {"set_mode","unload"},
+                            {"set_mode","load"},
                             {"lock", true},
                         }
                     },
@@ -364,6 +470,51 @@ int main(int argc, char **argv)
                 ROS_WARN("start conveyor control . . .");
 #endif
 
+
+#if 0
+    #if 0
+                j.clear();
+                j =
+                {
+                    {"pub_name","status_led_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"wifi","ok"},
+                            {"trans", "err"},
+                            {"battery", "warn"},
+                        }
+                    },
+                };
+    #else
+                j = 
+                {
+                    {"pub_name","serial_leds_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"period", 50},
+                            {"color", 
+                                {
+                                   {"r", 0},
+                                   {"g", 15},
+                                   {"b", 0},
+                                }
+                            },
+                            {"trans", "err"},
+                        }
+                    },
+                };
+    #endif
+                std_msgs::String pub_json_msg_10;
+                std::stringstream ss_10;
+                ss_10.clear();
+                ss_10 << j;
+                pub_json_msg_10.data.clear();
+                pub_json_msg_10.data = ss_10.str();
+                test_leds_ctrl_pub.publish(pub_json_msg_10);
+                ROS_WARN("start status leds control . . .");
+#endif
 
 #if 0
                 j.clear();
