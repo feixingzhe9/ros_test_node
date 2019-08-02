@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "std_msgs/UInt8MultiArray.h"
+#include "std_msgs/Float32MultiArray.h"
 #include "json.hpp"
 #include "mrobot_srvs/JString.h"
 #include "mrobot_srvs/KVPair.h"
@@ -77,17 +78,20 @@ int main(int argc, char **argv)
     ros::Publisher remote_power_ctrl_pub = n.advertise<std_msgs::UInt8MultiArray>("remote_power_ctrl",1000);
     ros::Publisher test_agent_pub = n.advertise<std_msgs::String>("agent_pub",1000);
     ros::Publisher test_leds_ctrl_pub = n.advertise<std_msgs::String>("led_ctrl", 10);
+    ros::Publisher test_sonar_work_mode_pub = n.advertise<std_msgs::UInt8MultiArray>("/sensors/ultrasonic/set_work_mode", 1);
+    ros::Publisher test_sonar_range_pub = n.advertise<std_msgs::Float32MultiArray>("/sensors/ultrasonic/set_range", 1);
 
     ros::ServiceClient service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/update_super_admin");
     ros::ServiceClient unlock_service_client = n.serviceClient<mrobot_srvs::JString>("smartlock/unlock");
     ros::ServiceClient factory_settings_service_client = n.serviceClient<mrobot_srvs::KVPair>("factory_settings/set_param");
     ros::ServiceClient led_ctrl_service_client = n.serviceClient<mrobot_srvs::JString>("led_ctrl");
     ros::ServiceClient conveyor_rfid_info_service_client = n.serviceClient<mrobot_srvs::JString>("/conveyor/rfid_info");
+    ros::ServiceClient sonar_base_en_service_client = n.serviceClient<mrobot_srvs::JString>("/sensors/ultrasonic/base_en");
     mrobot_srvs::JString srv;
     mrobot_srvs::KVPair factory_settings_srv;
     //srv.request.request = "\{ \'super_pwd\': \'1111\' \}";
     srv.request.request =  "{\"data\":\"{\\\"pub_name\\\":\\\"binding_credit_card_employees\\\"}\"}";
-    ros::Rate loop_rate(0.3);
+    ros::Rate loop_rate(0.5);
     json j;
     static uint32_t cnt = 0;
     static uint8_t flag = 0;
@@ -107,10 +111,59 @@ int main(int argc, char **argv)
             {
 
                // flag = 1;
-#if 0
-                {
 
-    #if 0
+#if 1
+                j.clear();
+                j =
+                {
+                    {"base_en", 0xff},
+                };
+                
+                {
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    mrobot_srvs::JString srv;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    ROS_INFO("sonar base en call ");
+                    sonar_base_en_service_client.call(srv);
+                    ROS_INFO("get sonar base en call returned:  srv.response.response: %s", srv.response.response.c_str());
+
+                }
+#endif
+
+
+#if 1
+                {
+                    std_msgs::UInt8MultiArray  sonar_work_mode;
+                    uint8_t mode = cnt % 4;
+                    sonar_work_mode.data.push_back(mode);
+                    test_sonar_work_mode_pub.publish(sonar_work_mode);
+                    ROS_INFO("set sonar work mode to %d ", mode);
+                }
+#endif
+
+#if 1
+                {
+                    std_msgs::Float32MultiArray  sonar_range;
+                    float min_range = 0.029;
+                    float max_range = 0.999;
+                    sonar_range.data.push_back(min_range);
+                    sonar_range.data.push_back(max_range);
+                    test_sonar_range_pub.publish(sonar_range);
+                    ROS_INFO("set sonar min range to %f, max range to %f ", min_range, max_range);
+                }
+#endif
+
+
+#if 0
+
+    ROS_INFO(" ");
+    ROS_INFO(" ---------------------------------------------------------------------------------------------------------------------");
+#if 1//status led ctrl
                 j.clear();
                 j =
                 {
@@ -124,25 +177,8 @@ int main(int argc, char **argv)
                         }
                     },
                 };
-    #else
-                j = 
+
                 {
-                    {"pub_name","serial_leds_ctrl"},
-                    {
-                        "data",
-                        {
-                            {"period", 50},
-                            {"color", 
-                                {
-                                   {"r", 0},
-                                   {"g", 15},
-                                   {"b", 0},
-                                }
-                            },
-                        }
-                    },
-                };
-    #endif
                     std_msgs::String pub_json_msg;
                     std::stringstream ss;
                     ss.clear();
@@ -150,16 +186,68 @@ int main(int argc, char **argv)
                     pub_json_msg.data.clear();
                     pub_json_msg.data = ss.str();
                     srv.request.request = pub_json_msg.data;
+                    ROS_INFO("status led ctrl call ");
                     led_ctrl_service_client.call(srv);
-                    ROS_INFO("led ctrl call ");
+                    ROS_INFO("get status led ctrl call returned:  srv.response.response: %s", srv.response.response.c_str());
+
                 }
 #endif
+#if 1//serial led ctrl
+                static uint8_t r1 = 100;
+                static uint8_t g1 = 0;
+                static uint8_t b1 = 255;
+                static uint8_t r2 = 100;
+                static uint8_t g2 = 0;
+                static uint8_t b2 = 255;
+                static uint8_t period = 50;
+                j = 
+                {
+                    {"pub_name","serial_leds_ctrl"},
+                    {
+                        "data",
+                        {
+                            {"period", period},
+                            {"color_1", 
+                                {
+                                    {"r", r1--},
+                                    {"g", g1++},
+                                    {"b", b1--},
+                                }
+                            },
+                            {"color_2", 
+                                {
+                                    {"r", r2++},
+                                    {"g", g2--},
+                                    {"b", b2++},
+                                }
+                            },
+                        }
+                    },
+                };
+                {
+                    std_msgs::String pub_json_msg;
+                    std::stringstream ss;
+                    ss.clear();
+                    ss << j;
+                    pub_json_msg.data.clear();
+                    pub_json_msg.data = ss.str();
+                    srv.request.request = pub_json_msg.data;
+                    ROS_INFO("serial led ctrl call ");
+                    led_ctrl_service_client.call(srv);
+                    ROS_INFO("serial get led ctrl call returned:  srv.response.response: %s", srv.response.response.c_str());
+                }
+#endif
+#endif
 
-
+                ROS_INFO(" ");
+                ROS_INFO(" ---------------------------------------------------------------------------------------------------------------------");
+                //ROS_INFO("sleep started");
+                //sleep(10);
+                //ROS_INFO("sleep finished");
 
 #if 0
                 {
-    #if 0
+    #if 1
                 j = 
                 {
                     {"pub_name","write_info"},
@@ -170,8 +258,8 @@ int main(int argc, char **argv)
                             {"src_id", 0x5678},
                             {"time", 
                                 {
-                                   {"hour", 17},
-                                   {"minute", 32},
+                                   {"hour", 0x17},
+                                   {"minute", 0x32},
                                 }
                             },
                         }
@@ -447,7 +535,7 @@ int main(int argc, char **argv)
 #endif
 
 
-#if 1
+#if 0
                 j.clear();
                 j =
                 {
